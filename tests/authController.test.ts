@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { AuthController } from "../src/features/auth";
 
@@ -8,6 +8,17 @@ const prepare = () => {
     const api = new AuthController({ client });
 
     return { mock, api };
+};
+
+const relayGetUsers = (config: AxiosRequestConfig) => {
+    const { Authorization: auth } = config.headers;
+    if (auth === `Bearer ${LOGIN_RESPONSE.token}`) {
+        return [401];
+    }
+    if (auth === `Bearer ${REFRESH_RESPONSE.token}`) {
+        return [200, []];
+    }
+    return [404];
 };
 
 const LOGIN_REQUEST = {
@@ -67,16 +78,7 @@ describe("Auth", () => {
             200,
             REFRESH_RESPONSE
         );
-        mock.onGet("/users").reply((config) => {
-            const { Authorization: auth } = config.headers;
-            if (auth === `Bearer ${LOGIN_RESPONSE.token}`) {
-                return [401];
-            }
-            if (auth === `Bearer ${REFRESH_RESPONSE.token}`) {
-                return [200, []];
-            }
-            return [404];
-        });
+        mock.onGet("/users").reply(relayGetUsers);
 
         await api.login(LOGIN_REQUEST);
         await api.getUsers();
@@ -103,17 +105,7 @@ describe("Auth", () => {
             200,
             REFRESH_RESPONSE
         );
-
-        mock.onGet("/users").reply((config) => {
-            const { Authorization: auth } = config.headers;
-            if (auth === `Bearer ${LOGIN_RESPONSE.token}`) {
-                return [401];
-            }
-            if (auth === `Bearer ${REFRESH_RESPONSE.token}`) {
-                return [200, []];
-            }
-            return [404];
-        });
+        mock.onGet("/users").reply(relayGetUsers);
 
         await api.login(LOGIN_REQUEST);
         await Promise.all([api.getUsers(), api.getUsers()]);
